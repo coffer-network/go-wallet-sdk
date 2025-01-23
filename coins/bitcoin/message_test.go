@@ -1,9 +1,12 @@
 package bitcoin
 
 import (
+	"encoding/hex"
+	"testing"
+
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestSignBip0322(t *testing.T) {
@@ -67,6 +70,7 @@ func TestMPCUnsignBip0322(t *testing.T) {
 	require.Equal(t, "70736274ff01003d00000000012eb1ba16cbc7659ece4a151926de839f94e3e988c73ae6290af9d668f3b61061000000000000000000010000000000000000016a000000000001011f000000000000000016001480cd4b68ad2abace26a975b27b4689f91cd2c5f9010304010000000000", res.PsbtTx)
 	require.Equal(t, "885d4019cae7c869d7c85567bcc8808eb8068c49d23cf1b8332ab3ba55d6c5b8", res.SignHashList[0])
 }
+
 func TestMPCSignedBip0322(t *testing.T) {
 	res, err := MPCSignedBip0322("Hello World", "tb1qsrx5k69d92avuf4fwke8k35flywd930ems48zf", "031cf908e7712d7a1c4cee9d18c41309fbc750ca47fde5e26a52704ea7fa196a50", []string{"96a8a365b9502ef1f2322b6ef38c058b3d20bff26e5dab17f1c2271d643317941f116006cedc765196c6120fc835054ed6806e71c7014613579d3e04ebb8fd47"}, &chaincfg.TestNet3Params)
 	require.NoError(t, err)
@@ -128,4 +132,74 @@ func TestVerifySimpleForBip0322(t *testing.T) {
 	publicKeyHex = "02c7f12003196442943d8588e01aee840423cc54fc1521526a3b85c2b0cbd58872"
 	err = VerifySimpleForBip0322(message, address, signatureB64, publicKeyHex, &chaincfg.MainNetParams)
 	require.NoError(t, err)
+}
+
+func TestCheckAddress(t *testing.T) {
+	var (
+		p2wpkhPubStr = "02a608b0b2235ab3b390c0337d83b9737769b9cada413746d3e1154635e04d94fe"
+		p2shPubStr   = "028b769f184856b55818a1636ee316d2dff9a4d833a178643f91ce1c458941e7c4"
+		p2trPubStr   = "03c3fb61f1e5294714447bc61e23891cb29393c8866b5c51efca5c96b2a67f5a9e"
+		p2pkhStr     = "02c326432445f2dec61f82ae5ed0f016d31f01970322555dcf40769f7c8e4784f2"
+	)
+
+	parse := func(pubStr string) *btcec.PublicKey {
+		b, _ := hex.DecodeString(pubStr)
+		pub, _ := btcec.ParsePubKey(b)
+		return pub
+	}
+
+	type args struct {
+		pub     *btcec.PublicKey
+		addr    string
+		network *chaincfg.Params
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "p2wpkh",
+			args: args{
+				addr:    "tb1qppnjnc85h4juvjw8n8n5jdy0htefjmnymym520",
+				pub:     parse(p2wpkhPubStr),
+				network: &chaincfg.TestNet3Params,
+			},
+			wantErr: false,
+		},
+		{
+			name: "p2sh",
+			args: args{
+				addr:    "2NEFdoZTAKnFDERgj2wy9mbcr1dZX3MxGw7",
+				pub:     parse(p2shPubStr),
+				network: &chaincfg.TestNet3Params,
+			},
+			wantErr: false,
+		},
+		{
+			name: "p2tr",
+			args: args{
+				addr:    "tb1pls9jtk5nstzmvjra8lnj08wwncmcex2q0zsyds92al8gplmmvluqyqgvzx",
+				pub:     parse(p2trPubStr),
+				network: &chaincfg.TestNet3Params,
+			},
+			wantErr: false,
+		},
+		{
+			name: "p2pkh",
+			args: args{
+				addr:    "n1PEDT3uR29r8Wfo4WYdXs89mFBciwJfyq",
+				pub:     parse(p2pkhStr),
+				network: &chaincfg.TestNet3Params,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := CheckAddress(tt.args.pub, tt.args.addr, tt.args.network); (err != nil) != tt.wantErr {
+				t.Errorf("CheckAddress() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

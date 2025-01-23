@@ -664,7 +664,7 @@ func VerifyMessage(signatureStr, prefix, message, publicKeyHex, address, signTyp
 	if err := checkPublicKeyHex(p, publicKeyHex); err != nil {
 		return err
 	}
-	if err := CheckAddr(p, address, network); err != nil {
+	if err := CheckAddress(p, address, network); err != nil {
 		return err
 	}
 	return nil
@@ -754,7 +754,7 @@ func NewAddressPubKeyHash(pub *btcec.PublicKey, network *chaincfg.Params) (strin
 	return newAddr.EncodeAddress(), nil
 }
 
-func CheckAddr(pub *btcec.PublicKey, addr string, network *chaincfg.Params) error {
+func CheckAddress(pub *btcec.PublicKey, addr string, network *chaincfg.Params) error {
 	if len(addr) == 0 {
 		return ErrNonSupportedAddrType
 	}
@@ -836,6 +836,9 @@ func CheckAddr(pub *btcec.PublicKey, addr string, network *chaincfg.Params) erro
 			return nil
 		}
 		return ErrInvalidSignature
+	case *btcutil.AddressScriptHash:
+		// todo:
+		return nil
 	default:
 		return ErrNonSupportedAddrType
 	}
